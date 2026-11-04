@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f5f7">
+  <title>ChatGPT Detector: Check if Text Is AI-Generated | Chat Detector</title>
+  <meta name="description" content="Paste text to check whether it reads as written by ChatGPT or other AI. Free, no sign-up, with sentence-level results and clear limits.">
+  <link rel="canonical" href="https://chatdetector.com/">
+  <meta property="og:title" content="ChatGPT Detector: Check if Text Is AI-Generated">
+  <meta property="og:description" content="Free ChatGPT and AI text detector with sentence-level results.">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="/style.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Chat Detector","url":"https://chatdetector.com/","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","description":"Check whether text reads as AI-generated. Results are estimates, not proof."}</script>
+</head>
+<body>
+  <header class="top"><a class="brand" href="/">Chat Detector</a><nav aria-label="Main navigation"><a href="/methodology">Methodology</a><a href="/about">About</a><a href="#faq">FAQ</a></nav></header>
+  <main>
+    <section class="hero">
+      <h1>ChatGPT detector</h1>
+      <p class="lede">Paste text to see whether it reads as written by ChatGPT or another AI. No sign-up.</p>
+      <div id="demo-banner" class="banner" hidden>Demo mode: results are placeholder numbers, not real detection. Configure a detection API to go live.</div>
+      <div class="tool">
+        <div class="samples"><span>Try a sample:</span>
+          <button type="button" data-sample="ai">ChatGPT-style</button>
+          <button type="button" data-sample="human">Human</button>
+          <button type="button" data-sample="mixed">Mixed</button>
+          <label class="upload">Upload .txt<input type="file" id="file" accept=".txt,text/plain" hidden></label>
+        </div>
+        <label for="text" class="sr">Text to check</label>
+        <textarea id="text" rows="10" maxlength="15000" placeholder="Paste your text here (at least 50 characters)..."></textarea>
+        <div class="bar"><span id="count" aria-live="polite">0 / 15,000 characters</span>
+          <div class="actions"><button type="button" id="clear" class="ghost">Clear</button><button type="button" id="check">Check for AI</button></div>
+        </div>
+        <p id="error" class="error" role="alert" hidden></p>
+        <div id="result" hidden>
+          <h2 id="verdict"></h2><div class="spectrum" aria-hidden="true"><i id="marker"></i></div>
+          <div class="scale"><span>Human</span><span>Mixed</span><span>AI</span></div>
+          <p id="score-note" class="muted"></p><h3>Sentence by sentence</h3>
+          <p id="sentences" class="sentences"></p><button type="button" id="copy" class="ghost">Copy result</button>
+          <p class="muted">Darker highlight means the sentence looks more AI-like. Treat this as a signal, not proof.</p>
+        </div>
+      </div>
+      <p class="fine">Not affiliated with OpenAI. In live mode, submitted text is sent to the configured provider for scoring.</p>
+    </section>
+    <section id="who"><h2>Who uses it</h2><p><strong>Students and teachers</strong> review essays and assignments as part of a conversation about authorship.</p><p><strong>Writers and editors</strong> review drafts and AI-assisted edits.</p><p><strong>Content teams</strong> can screen writing before publication.</p></section>
+    <section id="how"><h2>How it works</h2><ol class="steps"><li>Paste text or upload a .txt file.</li><li>Select Check for AI. The passage and sentences are scored by the selected provider.</li><li>Read the label and highlights carefully; a detector cannot establish authorship.</li></ol><p>Read the full <a href="/methodology">methodology and limits</a>.</p></section>
+    <section id="results"><h2>What the results mean</h2><p><strong>Likely human</strong> means few AI-like patterns were found. <strong>Mixed</strong> means some passages look AI-like. <strong>Likely AI</strong> means many do. None is proof of who wrote the text.</p></section>
+    <section id="faq"><h2>Frequently asked questions</h2>
+      <details><summary>Can it detect ChatGPT text?</summary><p>It looks for patterns a detection provider associates with AI-generated writing. It cannot identify a model with certainty.</p></details>
+      <details><summary>How accurate is it?</summary><p>Accuracy depends on text type, length, and editing. We do not publish an accuracy number without our own supporting tests.</p></details>
+      <details><summary>Can human writing be flagged as AI?</summary><p>Yes. False positives happen, especially with formal writing or non-native English. Do not treat results as proof.</p></details>
+      <details><summary>Can it find AI text that was edited?</summary><p>Sometimes. Editing and paraphrasing can make AI text harder to detect.</p></details>
+      <details><summary>Which languages work?</summary><p>English is the focus. Other languages depend on the configured provider and may be less reliable.</p></details>
+      <details><summary>Is my text stored?</summary><p>The app does not persist submitted text to a database. In live mode the text is sent to the configured provider; see the <a href="/privacy">privacy policy</a> and that provider's terms.</p></details>
+      <details><summary>Is it free?</summary><p>This software has a character limit and rate limit. A third-party provider may charge for API use.</p></details>
+      <details><summary>Can I upload Word or PDF files?</summary><p>Not currently. Paste text or upload a .txt file.</p></details>
+    </section>
+  </main>
+  <footer><span>Chat Detector. Not affiliated with OpenAI.</span><span><a href="/methodology">Methodology</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/about">About</a><a href="/contact">Contact</a></span></footer>
+  <script src="/app.js" defer></script>
+</body>
+</html>

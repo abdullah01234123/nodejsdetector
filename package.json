@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "description": "ChatGPT / AI text detector: Express server + static frontend",
   "main": "server.js",
-  "scripts": { "start": "node server.js", "dev": "node --watch server.js" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node --check server.js && node --check public/app.js"
+  },
   "engines": { "node": ">=18" },
   "dependencies": { "express": "^4.19.2", "express-rate-limit": "^7.4.0" },
   "license": "MIT"

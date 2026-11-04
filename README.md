@@ -1,28 +1,60 @@
 # Chat Detector
 
-Express server plus a static frontend for an AI/ChatGPT text detector.
+Node.js and Express app with a static frontend for checking text. The interface works immediately in **demo mode**, which returns placeholder scores and is not real AI detection.
+
+## Requirements
+
+- Node.js 18 or newer
+- npm
 
 ## Run locally
+
+```sh
+npm ci
+npm start
 ```
-npm install
-cp .env.example .env     # Windows: copy .env.example .env
-npm start                # http://localhost:3000
+
+Open <http://localhost:3000>. No `.env` file is required for demo mode. To use settings from `.env`, copy `.env.example` to `.env`; Node.js 20.6+ supports `node --env-file=.env server.js`. Alternatively export the values in your shell. The default `npm start` command intentionally does not load `.env` automatically.
+
+For development with automatic server restarts, use `npm run dev`. Run basic syntax checks with `npm run check`.
+
+## Configuration
+
+- `DETECTOR_PROVIDER=demo` (default): deterministic placeholder values; **not actual detection**.
+- `DETECTOR_PROVIDER=sapling` and `SAPLING_API_KEY=...`: uses the Sapling API. Confirm the endpoint, request fields, response shape, pricing, and privacy terms against Sapling's current documentation before relying on it.
+- `PORT=3000`: listening port; hosting platforms can set this.
+- `MAX_CHARS=15000`: maximum input size.
+- `RATE_LIMIT_PER_HOUR=20`: requests allowed per IP per hour.
+- `TRUST_PROXY=true`: enable only when deployed behind a trusted reverse proxy configured by your host.
+
+## Project layout
+
+```text
+.
+├── package.json
+├── package-lock.json
+├── server.js
+├── .env.example
+├── .gitignore
+├── README.md
+└── public/
+    ├── index.html
+    ├── style.css
+    ├── app.js
+    ├── methodology.html
+    ├── about.html
+    ├── privacy.html
+    ├── terms.html
+    ├── contact.html
+    ├── 404.html
+    ├── robots.txt
+    └── sitemap.xml
 ```
-Node 18+ required. The server reads environment variables (set them in your shell or hosting dashboard; `.env` is not auto-loaded, so for local use run `node --env-file=.env server.js` on Node 20+).
 
-## Modes
-- `DETECTOR_PROVIDER=demo` (default): placeholder numbers so you can test the UI. **Not real detection.**
-- `DETECTOR_PROVIDER=sapling` with `SAPLING_API_KEY`: real scores via Sapling. Verify the request fields in `server.js` against Sapling's current docs. To use another provider, add a function to `providers` returning `{ aiScore (0-1), sentences: [{text, score}], demo:false }`.
+## Before production
 
-## Built in
-Character cap, minimum length, per-IP rate limit, result cache (hashes only, text is never stored), safe DOM rendering, SEO meta, canonical, WebApplication JSON-LD, robots.txt, sitemap.xml.
-
-## Pages
-Home (tool, sample buttons, .txt upload, copy result), methodology, about, privacy, terms, contact, 404. Privacy and terms are templates: have them reviewed. The contact email is a placeholder.
-
-## Before going live
-1. Test your chosen API on known human and AI samples.
-2. Add Cloudflare Turnstile before opening it to the public.
-3. Add privacy policy, terms, and a methodology page; confirm the privacy wording matches your provider.
-4. Replace `chatdetector.com` in `index.html`, `robots.txt`, `sitemap.xml` if your domain differs.
-5. Deploy to a Node host (Render, Railway, Fly.io) and connect the domain.
+1. Configure and test a real provider; demo scores are not detection results.
+2. Review privacy, terms, and methodology against the provider and your jurisdiction. The included legal text is a template, not legal advice.
+3. Replace the example domain and contact email in the public pages, `robots.txt`, and `sitemap.xml`.
+4. Add abuse protection such as a CAPTCHA/Turnstile and configure proxy trust appropriately for your hosting provider.
+5. Deploy on a Node.js host. The server serves assets and extensionless HTML routes from `public/`.

@@ -3,16 +3,18 @@ const rateLimit = require("express-rate-limit");
 const crypto = require("crypto");
 const path = require("path");
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const PROVIDER = (process.env.DETECTOR_PROVIDER || "demo").toLowerCase();
-const MAX_CHARS = Number(process.env.MAX_CHARS || 15000);
+const MAX_CHARS = Number(process.env.MAX_CHARS) || 15000;
 const MIN_CHARS = 50;
-const LIMIT = Number(process.env.RATE_LIMIT_PER_HOUR || 20);
+const LIMIT = Number(process.env.RATE_LIMIT_PER_HOUR) || 20;
+const PUBLIC_DIR = path.join(__dirname, "public");
 
 const app = express();
-app.set("trust proxy", 1);
+// Set this only when the app is deployed behind a trusted reverse proxy.
+if (process.env.TRUST_PROXY === "true") app.set("trust proxy", 1);
 app.use(express.json({ limit: "100kb" }));
-app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] }));
+app.use(express.static(PUBLIC_DIR, { extensions: ["html"] }));
 
 const limiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -22,74 +24,88 @@ const limiter = rateLimit({
   message: { error: "Too many checks from your network. Please try again later." },
 });
 
-// Small in-memory cache: stores results keyed by a hash, never the text itself.
+// Cache result data by a one-way hash; submitted text is not stored in the cache.
 const cache = new Map();
 const CACHE_TTL = 60 * 60 * 1000;
-function cacheGet(k) {
-  const v = cache.get(k);
-  if (!v) return null;
-  if (Date.now() - v.t > CACHE_TTL) { cache.delete(k); return null; }
-  return v.data;
+function cacheGet(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.createdAt > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
 }
-function cacheSet(k, data) {
-  if (cache.size > 500) cache.delete(cache.keys().next().value);
-  cache.set(k, { t: Date.now(), data });
+function cacheSet(key, data) {
+  if (cache.size >= 500) cache.delete(cache.keys().next().value);
+  cache.set(key, { createdAt: Date.now(), data });
 }
 
-const splitSentences = (t) => (t.match(/[^.!?\n]+[.!?]*/g) || []).map((s) => s.trim()).filter(Boolean);
-const label = (s) => (s < 0.3 ? "Likely human" : s < 0.7 ? "Mixed" : "Likely AI");
+const splitSentences = (text) => (text.match(/[^.!?\n]+[.!?]*/g) || []).map((s) => s.trim()).filter(Boolean);
+const label = (score) => score < 0.3 ? "Likely human" : score < 0.7 ? "Mixed" : "Likely AI";
 
-// DEMO provider: deterministic placeholder numbers so you can test the interface.
-// These are NOT detection results.
+// Demo values are deterministic placeholders, not actual AI detection.
 function demoDetect(text) {
-  const sentences = splitSentences(text).map((s) => {
-    const h = crypto.createHash("md5").update(s).digest()[0] / 255;
-    return { text: s, score: Math.round(h * 100) / 100 };
+  const sentences = splitSentences(text).map((sentence) => {
+    const value = crypto.createHash("md5").update(sentence).digest()[0] / 255;
+    return { text: sentence, score: Math.round(value * 100) / 100 };
   });
-  const avg = sentences.reduce((a, b) => a + b.score, 0) / (sentences.length || 1);
-  return { aiScore: avg, sentences, demo: true };
+  const aiScore = sentences.reduce((sum, sentence) => sum + sentence.score, 0) / (sentences.length || 1);
+  return { aiScore, sentences, demo: true };
 }
 
-// SAPLING provider (verify request/response fields against Sapling's current docs).
+// Verify provider request/response fields against its current API documentation before production use.
 async function saplingDetect(text) {
   const key = process.env.SAPLING_API_KEY;
   if (!key) throw new Error("SAPLING_API_KEY is not set.");
-  const r = await fetch("https://api.sapling.ai/api/v1/aidetect", {
+  const response = await fetch("https://api.sapling.ai/api/v1/aidetect", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key, text, sent_scores: true }),
   });
-  if (!r.ok) throw new Error("Detection provider returned status " + r.status);
-  const d = await r.json();
-  const sentences = (d.sentence_scores || []).map((s) => ({ text: s.sentence, score: s.score }));
-  return { aiScore: d.score, sentences, demo: false };
+  if (!response.ok) throw new Error(`Detection provider returned status ${response.status}`);
+  const result = await response.json();
+  const sentences = (result.sentence_scores || []).map((item) => ({ text: item.sentence, score: item.score }));
+  return { aiScore: result.score, sentences, demo: false };
 }
 
 const providers = { demo: demoDetect, sapling: saplingDetect };
 
-app.get("/api/status", (req, res) => res.json({ provider: PROVIDER, maxChars: MAX_CHARS, demo: PROVIDER === "demo" }));
+app.get("/api/status", (_req, res) => {
+  res.json({ provider: PROVIDER, maxChars: MAX_CHARS, demo: PROVIDER === "demo" });
+});
 
 app.post("/api/detect", limiter, async (req, res) => {
-  const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
+  const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
   if (text.length < MIN_CHARS) return res.status(400).json({ error: `Enter at least ${MIN_CHARS} characters.` });
   if (text.length > MAX_CHARS) return res.status(400).json({ error: `Text is over the ${MAX_CHARS.toLocaleString()} character limit.` });
-  const fn = providers[PROVIDER];
-  if (!fn) return res.status(500).json({ error: "Detector is not configured." });
+  const detect = providers[PROVIDER];
+  if (!detect) return res.status(500).json({ error: "Detector is not configured." });
 
-  const key = PROVIDER + ":" + crypto.createHash("sha256").update(text).digest("hex");
-  const hit = cacheGet(key);
-  if (hit) return res.json(hit);
+  const key = `${PROVIDER}:${crypto.createHash("sha256").update(text).digest("hex")}`;
+  const cached = cacheGet(key);
+  if (cached) return res.json(cached);
+
   try {
-    const out = await fn(text);
-    const data = { provider: PROVIDER, demo: out.demo, aiScore: out.aiScore, label: label(out.aiScore), sentences: out.sentences };
+    const result = await detect(text);
+    if (!Number.isFinite(result.aiScore) || result.aiScore < 0 || result.aiScore > 1) {
+      throw new Error("Detection provider returned an invalid score.");
+    }
+    const data = {
+      provider: PROVIDER,
+      demo: result.demo,
+      aiScore: result.aiScore,
+      label: label(result.aiScore),
+      sentences: result.sentences,
+    };
     cacheSet(key, data);
-    res.json(data);
-  } catch (e) {
-    console.error(e.message);
-    res.status(502).json({ error: "The detector could not process this text. Please try again." });
+    return res.json(data);
+  } catch (error) {
+    console.error(error.message);
+    return res.status(502).json({ error: "The detector could not process this text. Please try again." });
   }
 });
 
-app.use((req, res) => res.status(404).sendFile(path.join(__dirname, "public", "404.html")));
+app.use((_req, res) => res.status(404).sendFile(path.join(PUBLIC_DIR, "404.html")));
 
 app.listen(PORT, () => console.log(`Chat Detector running on http://localhost:${PORT} (provider: ${PROVIDER})`));
